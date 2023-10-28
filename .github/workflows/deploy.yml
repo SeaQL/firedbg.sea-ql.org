@@ -1,0 +1,45 @@
+name: Deploy
+
+on:
+  push:
+    paths-ignore:
+      - '.github/ISSUE_TEMPLATE/**'
+    branches:
+      - master
+
+concurrency:
+  group: firedbg.sea-ql.org
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - run: yarn set version 3.6.1
+
+      - uses: actions/cache@v3
+        with:
+          key: ${{ github.repository }}-${{ github.ref_name }}
+          path: |
+            ~/.yarn
+
+      - id: git-log
+        run: echo "message=$(git log --no-merges -1 --oneline)" >> $GITHUB_OUTPUT
+
+      - run: echo $GITHUB_OUTPUT
+
+      - run: sh build.sh
+
+      - uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: dist
+          clean: false
+          clean-exclude: preview
