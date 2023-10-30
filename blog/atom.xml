@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://firedbg.sea-ql.org/blog</id>
+    <title>FireDBG - 🌊 The time-travel visual debugger for Rust Blog</title>
+    <updated>2023-10-30T00:00:00.000Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://firedbg.sea-ql.org/blog"/>
+    <subtitle>FireDBG - 🌊 The time-travel visual debugger for Rust Blog</subtitle>
+    <icon>https://firedbg.sea-ql.org/favicon.ico</icon>
+    <entry>
+        <title type="html"><![CDATA[Welcome]]></title>
+        <id>https://firedbg.sea-ql.org/blog/2023-10-30-welcome</id>
+        <link href="https://firedbg.sea-ql.org/blog/2023-10-30-welcome"/>
+        <updated>2023-10-30T00:00:00.000Z</updated>
+        <summary type="html"><![CDATA[Welcome]]></summary>
+        <content type="html"><![CDATA[<p>Welcome</p>]]></content>
+        <author>
+            <name>Chris Tsang</name>
+            <uri>https://github.com/tyt2y3</uri>
+        </author>
+        <category label="news" term="news"/>
+    </entry>
+</feed>

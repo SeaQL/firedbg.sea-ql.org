@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkfiredbg=self.webpackChunkfiredbg||[]).push([[535],{5641:e=>{e.exports=JSON.parse('{"title":"All Posts","items":[{"title":"Welcome","permalink":"/blog/2023-10-30-welcome"}]}')}}]);
