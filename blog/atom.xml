@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://firedbg.sea-ql.org/blog</id>
-    <title>FireDBG - 🌊 The time-travel visual debugger for Rust Blog</title>
+    <title>FireDBG - 🔥 Time Travel Visual Debugger for Rust Blog</title>
     <updated>2023-10-30T00:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://firedbg.sea-ql.org/blog"/>
-    <subtitle>FireDBG - 🌊 The time-travel visual debugger for Rust Blog</subtitle>
+    <subtitle>FireDBG - 🔥 Time Travel Visual Debugger for Rust Blog</subtitle>
     <icon>https://firedbg.sea-ql.org/favicon.ico</icon>
     <entry>
         <title type="html"><![CDATA[Welcome]]></title>
