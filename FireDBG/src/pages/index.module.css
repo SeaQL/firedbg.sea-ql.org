@@ -39,3 +39,9 @@
     display: none;
   }
 }
+
+.demoVideo {
+  width: 100%;
+  max-height: 87vh;
+  margin-bottom: 56px;
+}

@@ -1,0 +1,554 @@
+---
+slug: 2023-12-13-getting-started
+title: Getting Started
+author: Billy Chan
+author_title: FireDBG Team
+author_url: https://github.com/billy1624
+author_image_url: https://avatars.githubusercontent.com/u/30400950?v=4
+tags: [news]
+---
+
+import { Video, Image } from '../src/themed.js';
+
+In this blog post, we will cover the basic usage of FireDBG VS Code Extension ("the Extension") and FireDBG CLI ("the CLI"). By the end of this tutorial, you will learn:
+
+- How to install the Extension and the CLI
+- How to setup a Rust workspace for FireDBG debugger
+- How to debug Rust binary, example, unit test and integration test with FireDBG debugger
+- How to interpret and inspect visualized call tree, variables and timeline in the Extension
+- How to interpret and inspect breakpoint events of multi-threaded program in the Extension
+- How to trace any variable / expression of interest with the `fire::dbg!` trace macro
+- How to selectively enable / disable tracing of a local package
+- How to use the CLI to operate FireDBG debugger and then interpret and inspect breakpoint events without the Extension
+
+If you're curious about the background and inner working of FireDBG
+
+- [Introducing FireDBG for Rust 🔥](/blog/2023-12-12-introducing-firedbg)
+- [Architecture of FireDBG](/blog/2023-12-11-architecture-of-firedbg)
+
+## Installation
+
+Before we start, make sure you have VS Code and Rust installed.
+
+- VS Code (version 1.80.0 or later)
+- Rust (version 1.74.0 or later)
+
+### FireDBG VS Code Extension
+
+Search and install the [`SeaQL.firedbg-rust`](https://marketplace.visualstudio.com/items?itemName=SeaQL.firedbg-rust) extension.
+
+The Extension provide seamless code and debug experience to maximaize developer productivity. You can also use FireDBG via the CLI interface and interpret the debug info via FireDBG indexer, without the the Extension.
+
+### FireDBG Binaries
+
+Building FireDBG from source can be tricky, so we provided prebuilt binaries for the following CPU and OS combination:
+
+|                | Linux[^1] | macOS[^2] | Windows (WSL 2)[^3] |
+|---------------:|:---------:|:---------:|:-------------------:|
+| x64            | ✅        | ✅        | ✅                   |
+| arm64          | ⛔️        | ✅        | ⛔️                   |
+
+Once the the Extension has been installed, you should see a prompt hinting that FireDBG binaries are missing. Click on the "install" button to run the installer.
+
+<Image src="/img/gt-install-firedbg-light.png"/>
+
+Or, you can run the installer manually.
+
+```shell
+curl https://raw.githubusercontent.com/SeaQL/FireDBG.for.Rust/main/install.sh -sSf | sh
+```
+
+FireDBG binaries will be installed in `~/.cargo/bin` and a debugger self test will be conducted to verify the installation.
+
+In case you got error messages when performing self test, read [Troubleshooting Guide](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/Troubleshooting.md) for the solution of common errors.
+
+## GUI Tour
+
+Download the [source code in zip](https://codeload.github.com/SeaQL/FireDBG.Rust.Testbench/zip/refs/heads/main), or cloning [Rust Testbench for FireDBG](https://github.com/SeaQL/FireDBG.Rust.Testbench) to your machine, then follow the tour below to learn the GUI of the Extension.
+
+```shell
+git clone git@github.com:SeaQL/FireDBG.Rust.Testbench.git
+```
+
+### Debug Targets and Runs
+
+<Image src="/img/gt-debug-and-run-light.png"/>
+
+1. Click on the "Run and Debug" panel on your primary sidebar, you should see two new panels on the bottom
+2. The `FIREDBG` panel should display all binaries, examples, integration tests and unit tests in your current Rust workspace. Click on the list item to reveal the Rust source code. To debug it, hover the list item and click on the play icon ▶️ on the list item. A new debug view will be shown and tail the progress in real time. 
+3. All previous debug runs can be found in the `FIREDBG RUNS` panel, simply click on it to reveal.
+
+### Visual Debugger
+
+<Image src="/img/gt-vis-debugger-light.png"/>
+
+1. Each node represent a function call; the depth of each node resemmble the depth of the function call in the call stack; There are two types of edge:
+	- Function call with return value: `-<->-`
+	- Function call only: `-->--`
+2. If the program exited with a panic, the panicking function will be highlighted in red with an exclamation mark.
+3. Click on the function name on the call tree node to reveal the Rust source code.
+4. Function Arguments: the name of the argument is shown as the label. The faded text on the bounding box denote the type name, where hovering on it will reveal the fully-qualified name. The actual value is enclosed in the bounding box.
+5. Function Return Value: the return value will be shown on the far right with the label `return`.
+6. Timeline: toggle the timline by checking the timeline checkbox on the bottom. There are two kinds of node:
+    - circle: function call
+    - square: function return
+7. Thread selector: If the program has more than one thread, a dropdown will be shown on the bottom. You can switch to inspect the execution of other threads. Bring up the timeline to view the execution of all threads in a single view.
+
+#### Controls
+
+<Image src="/img/gt-vis-debugger-control-light.png"/>
+
+1. Use the control buttons on the timebar to jump to the beginning or the end of program execution. Use `J/K` on your keyboard or stepping button to step backward and forward. Click on the timebar would jump to the exact function call.
+2. The visualization will be updated as you traverse the call tree. Use `W/A/S/D` keys on your keyboard or your left mouse click to pan; Click the `+/-` buttons on the bottom right or `-/=` on your keyboard or use your mouse scroll wheel to zoom. To resize the panel, move the mouse to the panel edge then drag to resize.
+
+### FireDBG Sidebar
+
+<Image src="/img/gt-sidebar-light.png"/>
+
+The FireDBG sidebar contains all debug info. It will be updated as you traverse the call tree.
+
+1. `Debugger Info`: FireDBG debugger info, program executable info and runtime info
+2. `Frame Info`: frame metadata of the inspected function call
+3. `Parameters`: Rust-like representation of the inspected function call's arguments
+4. `Return Value`: Rust-like representation of the inspected function's return value
+5. `Call Stack (Ancestors)`: ancestors of the inspected function; up until root
+6. `Callee (Children)`: immediate children of the inspected function
+
+## FireDBG CLI
+
+There are two ways to tell `firedbg` where is the root directory of a cargo workspace:
+
+1. By default, the current directory will be the root directory of a cargo workspace
+2. Or, overriding it with `--workspace-root` option, i.e. `firedbg --workspace-root <WORKSPACE-ROOT>`
+
+Some common sub-commands include:
+
+- `cache`: Parse all `.rs` source files in the current workspace
+- `clean`: Cleanup the `firedbg/` folder
+- `list-target`: List all runnable targets
+- `run`: Run a binary target with debugging enabled
+- `example`: Run an example with debugging enabled
+- `test`: Run an integrated test with debugging enabled
+- `unit-test`: Run a unit test with debugging enabled
+- `index`: Run indexer on the latest run and save it as a `.sqlite` db file
+- `list-run`: List all `firedbg` runs
+- `open`: Open debugger view in VS Code
+- `help`: Print help message or the help of the given subcommand(s)
+
+You can get the help messages by appending the `--help` flag.
+
+## FireDBG Workspace
+
+[Cargo workspace](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html) is a set of crates sharing the same `Cargo.lock` and `target` directory.
+FireDBG rely on Cargo to locate source files and target for debugging.
+
+<Image src="/img/gt-workspace-light.png"/>
+
+```shell
+$ firedbg list-target
+
+Available binaries are:
+        quicksort
+
+Available examples are:
+        random100
+
+Available tests of `bookshelf` are:
+        test_quicksort_1
+
+Available unit tests of `book-store` package are:
+        test::test_inventory_1
+
+Available unit tests of `quicksort` package are:
+        test::test_quicksort_1
+        test::test_quicksort_2
+```
+
+Let's create a Cargo workspace and try debugging with FireDBG. [Full source code](https://github.com/SeaQL/FireDBG.Rust.Testbench/tree/main/getting-started) is available on our testbench.
+
+```shell
+$ mkdir getting-started
+$ cd getting-started
+```
+
+For now, we only have a single `quicksort` package in this workspace. We will add one more crate later.
+
+```toml title="Cargo.toml"
+[workspace]
+members = ["quicksort"]
+```
+
+To create the `quicksort` library, we can use the convenient `cargo` command.
+
+```shell
+$ cargo new --lib quicksort
+$ cd quicksort
+```
+
+### Debugging Unit Tests
+
+Replace the `lib.rs` with our "faulty" quick sort library code.
+
+```rust title="quicksort/src/lib.rs"
+pub fn run<T: PartialOrd>(arr: &mut [T]) {
+    let len = arr.len();
+    quick_sort(arr, 0, (len - 1) as isize);
+}
+
+fn quick_sort<T: PartialOrd>(arr: &mut [T], low: isize, high: isize) {
+    if low < high {
+        let p = partition(arr, low, high);
+        quick_sort(arr, low, p - 1);
+        quick_sort(arr, p + 1, high);
+    }
+}
+
+fn partition<T: PartialOrd>(arr: &mut [T], low: isize, high: isize) -> isize {
+    let pivot = high as usize;
+    let mut store_index = low; // Shouldn't this be `low - 1`?
+    let mut last_index = high;
+
+    loop {
+        store_index += 1;
+        while arr[store_index as usize] < arr[pivot] {
+            store_index += 1;
+        }
+        last_index -= 1;
+        while last_index >= 0 && arr[last_index as usize] > arr[pivot] {
+            last_index -= 1;
+        }
+        if store_index >= last_index {
+            break;
+        } else {
+            arr.swap(store_index as usize, last_index as usize);
+        }
+    }
+    arr.swap(store_index as usize, pivot as usize);
+    store_index
+}
+```
+
+Then add some unit tests.
+
+```rust title="quicksort/src/lib.rs"
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_quicksort_1() {
+        let mut numbers = [4, 65, 2, -31, 0, 99, 2, 83, 782, 1];
+        run(&mut numbers);
+        assert_eq!(numbers, [-31, 0, 1, 2, 2, 4, 65, 83, 99, 782]);
+    }
+
+    #[test]
+    fn test_quicksort_2() {
+        let mut numbers = [1, 2, 2];
+        run(&mut numbers);
+        assert_eq!(numbers, [1, 2, 2]);
+    }
+}
+```
+
+Click on the debug icon on the left to start debugging the unit test.
+We found that it's quite hard to inspect what elements are swapped in each partition.
+
+<Image src="/img/gt-unit-test-light.png"/>
+
+To help debugging, we can add a `swap` function and rewrite the original code:
+
+```diff
+fn partition<T: PartialOrd>(arr: &mut [T], low: isize, high: isize) -> isize {
+    let pivot = high as usize;
+    let mut store_index = low - 1;
+    let mut last_index = high;
+
+    loop {
+        store_index += 1;
+        while arr[store_index as usize] < arr[pivot] {
+            store_index += 1;
+        }
+        last_index -= 1;
+        while last_index >= 0 && arr[last_index as usize] > arr[pivot] {
+            last_index -= 1;
+        }
+        if store_index >= last_index {
+            break;
+        } else {
+-           arr.swap(store_index as usize, last_index as usize);
++           swap(&mut arr[store_index as usize..=last_index as usize]);
+        }
+    }
+-   arr.swap(store_index as usize, pivot as usize);
++   swap(&mut arr[store_index as usize..=pivot as usize]);
+    store_index
+}
+
++ fn swap<T: PartialOrd>(arr: &mut [T]) {
++     arr.swap(0, arr.len() - 1);
++ }
+```
+
+> Tip: you can add `#[cfg_attr(not(debug_assertions), inline)]` to the `swap` function to inline it in release build, so that it will not incur any overhead.
+
+Now, we can easily see the `swap` and what has been swapped. Upon closer inspection we will see a pattern, i.e. the first element of each partition is always untouched. That's the bug!
+
+<Image src="/img/gt-unit-test-swap-light.png"/>
+
+### `fire::dbg!` Trace Macro
+
+Let's try to debug the same program with a different approach. An non-invasive approach, this time we only trace the swap without modifying the program structure.
+
+FireDBG provide a [`fire::dbg!`](https://docs.rs/firedbg-lib/latest/firedbg_lib/fire/macro.dbg.html) macro similar to [`std::dbg!`](https://doc.rust-lang.org/std/macro.dbg.html) to capture the variable of interest.
+
+We can trace the swap actions with the help of `fire::dbg!`. The main advantage compared to `std::dbg!`, is that the trace data is associated with the stack frame of the calling function.
+
+Undo the previous change and go back to the original implementation.
+
+```diff title="Cargo.toml"
+[dependencies]
++ firedbg-lib = "0.1"
+```
+
+```diff
++ use firedbg_lib::fire;
+
+fn partition<T: PartialOrd>(arr: &mut [T], low: isize, high: isize) -> isize {
+    let pivot = high as usize;
+    let mut store_index = low - 1;
+    let mut last_index = high;
+
+    loop {
+        store_index += 1;
+        while arr[store_index as usize] < arr[pivot] {
+            store_index += 1;
+        }
+        last_index -= 1;
+        while last_index >= 0 && arr[last_index as usize] > arr[pivot] {
+            last_index -= 1;
+        }
+        if store_index >= last_index {
+            break;
+        } else {
++           fire::dbg!("swap", &arr[store_index as usize..=last_index as usize]);
+            arr.swap(store_index as usize, last_index as usize);
+        }
+    }
++   fire::dbg!("swap", &arr[store_index as usize..=pivot as usize]);
+    arr.swap(store_index as usize, pivot as usize);
+    store_index
+}
+```
+
+This time the swap is shown in the variables of the partition function.
+As expected, we see 3 swaps. This should help us to observe the pattern, and locate and fix the bug.
+
+<Image src="/img/gt-unit-test-dbg-light.png"/>
+
+### Debugging Integration Tests
+
+Similar to unit test, we can debug integration test with FireDBG. Let's add an integration test file:
+
+```rust title="quicksort/tests/bookshelf.rs"
+#[test]
+fn test_quicksort_1() {
+    let mut books = [
+        "The Rust Programming Language",
+        "Beginning Rust: From Novice to Professional",
+        "Rust in Action",
+        "Programming Rust: Fast, Safe Systems Development",
+        "Rust Programming Language for Beginners",
+    ];
+    quicksort::run(&mut books);
+    assert_eq!(
+        books,
+        [
+            "Beginning Rust: From Novice to Professional",
+            "Programming Rust: Fast, Safe Systems Development",
+            "Rust Programming Language for Beginners",
+            "Rust in Action",
+            "The Rust Programming Language",
+        ]
+    );
+}
+```
+
+<Image src="/img/gt-integration-test-light.png"/>
+
+### Debugging Binary Targets
+
+Let's create an executable program. We need to add some dependencies first.
+
+```diff title="Cargo.toml"
+[dependencies]
+firedbg-lib = "0.1"
++ fastrand = "2"
++ structopt = "0.3"
+```
+
+```rust title="quicksort/src/main.rs"
+use firedbg_lib::fire;
+use std::iter::repeat_with;
+use structopt::StructOpt;
+
+#[derive(StructOpt, Debug)]
+struct Opt {
+    /// Random seed
+    #[structopt(long, default_value = "2525")]
+    seed: u64,
+    /// Number of random numbers to be sorted
+    #[structopt(default_value = "10")]
+    n: usize,
+}
+
+fn main() {
+    let Opt { seed, n } = Opt::from_args();
+
+    fire::dbg!(&seed);
+    fire::dbg!(&n);
+
+    fastrand::seed(seed);
+
+    let max = if n <= 10 { 100 } else { 1000 };
+
+    println!("Sort {n} numbers in ascending order");
+    let mut numbers: Vec<_> = repeat_with(|| fastrand::i32(1..max)).take(n).collect();
+
+    println!("Input:  {:?}", numbers);
+    quicksort::run(&mut numbers);
+    println!("Sorted: {:?}", numbers);
+
+    let mut c = 0;
+    for n in numbers {
+        assert!(n >= c);
+        c = n;
+    }
+}
+```
+
+<Image src="/img/gt-binary-light.png"/>
+
+We can use the FireDBG CLI to pass additional parameters to the Rust binary:
+
+```shell
+# Randomly generate 18 numbers with the random seed 2828, then sort it in ascending order
+firedbg run quicksort -- 18 --seed 2828
+```
+
+We can the open the debug view by clicking the items in the `FIREDBG RUNS` panel, or with the `open` command:
+
+```shell
+firedbg open
+```
+
+### Debugging Examples
+
+Examples work the same as binary targets, just that they are located under the `examples/` directory.
+
+### `firedbg/` Output Folder
+
+<Image src="/img/gt-firedbg-folder-light.png"/>
+
+A `firedbg` folder will be created for storing the symbols, debug runs and other supporting files.
+You should ignore this folder from your source control, i.e. add `firedbg/` to `.gitignore`.
+
+### `firedbg.toml` Config
+
+Let's try and add one more crate to the workspace.
+
+```shell
+$ cargo new --lib book-store
+$ cd book-store
+```
+
+Update the `Cargo.toml` at workspace root, adding our new `book-store` package.
+
+```toml title="Cargo.toml"
+[workspace]
+members = ["quicksort", "book-store"]
+```
+
+Below we have a simple function to list the inventory in alphabetical order.
+
+```rust title="book-store/src/lib.rs"
+use anyhow::Result;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+
+pub fn inventory(path: &str) -> Result<Vec<String>> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+
+    let mut books = Vec::new();
+    for line in reader.lines() {
+        let book = line?.trim().to_owned();
+        books.push(book);
+    }
+    quicksort::run(&mut books);
+    Ok(books)
+}
+```
+
+To put it in action we can add a `books.txt` file to the package root and then write a unit test to invoke the `inventory` function.
+
+```txt title="book-store/books.txt"
+The Rust Programming Language
+Rust Programming Language for Beginners
+Programming Rust: Fast, Safe Systems Development
+Beginning Rust: From Novice to Professional
+Rust in Action
+```
+
+```rust title="book-store/src/lib.rs"
+#[cfg(test)]
+mod test {
+    use super::*;
+    use anyhow::Result;
+
+    #[test]
+    fn test_inventory_1() -> Result<()> {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/books.txt");
+        let books = inventory(path)?;
+        assert_eq!(
+            books,
+            [
+                "Beginning Rust: From Novice to Professional",
+                "Programming Rust: Fast, Safe Systems Development",
+                "Rust Programming Language for Beginners",
+                "Rust in Action",
+                "The Rust Programming Language",
+            ]
+        );
+        Ok(())
+    }
+}
+```
+
+Umm... we see that function calls to the `quicksort` crate are missing in the call tree.
+
+<Image src="/img/gt-book-store-light.png"/>
+
+By default FireDBG will only trace the functions of the debug target.
+If you want to trace other crates in your local workspace, you will need to create a `firedbg.toml` config file in your workspace root.
+
+```toml title="firedbg.toml"
+[workspace.members]
+quicksort = { trace = "full" } 
+# Syntax: <PACKAGE> = { trace = "<full | none>" }
+```
+
+Now, we can see the function calls of the `quicksort` crate!
+
+<Image src="/img/gt-trace-config-light.png"/>
+
+## The Event Index
+
+When you open a `.firedbg.ss` file, FireDBG indexer will create a `.sqlite` file to store the analyzed debug info.
+You can also run the indexer manually with the `firedbg index` sub-command.
+
+<Image src="/img/gt-sqlite-light.png"/>
+
+[^1]: Supported Linux distributions: Ubuntu 22.04, Ubuntu 20.04, Debian 10, Fedora 39
+[^2]: Supported macOS versions: macOS 13 (Ventura), macOS 14 (Sonoma)
+[^3]: Supported Windows (WSL 2) distributions: Ubuntu 22.04, Ubuntu 20.04

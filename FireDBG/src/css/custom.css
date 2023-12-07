@@ -41,3 +41,21 @@ html[data-theme='dark'] {
 html[data-theme='dark'] .docusaurus-highlight-code-line {
   background-color: rgba(0, 0, 0, 0.3);
 }
+
+@media (min-width: 1440px) {
+  .container {
+    max-width: unset;
+  }
+}
+
+.medium-zoom-image.medium-zoom-image--opened {
+  z-index: 9999;
+}
+
+[data-theme='light'] img[src$='dark'],
+[data-theme='dark'] img[src$='light'],
+[data-theme='light'] video[data-theme='dark'],
+[data-theme='dark'] video[data-theme='light']
+{
+  display: none;
+}

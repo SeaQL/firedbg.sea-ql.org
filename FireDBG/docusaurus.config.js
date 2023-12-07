@@ -7,8 +7,8 @@
 
 /** @type {import('@docusaurus/types').DocusaurusConfig} */
 module.exports = {
-  title: 'FireDBG - 🌊 The time-travel visual debugger for Rust',
-  tagline: '🌊 The time-travel visual debugger for Rust',
+  title: 'FireDBG - 🔥 Time Travel Visual Debugger for Rust',
+  tagline: '🔥 Time Travel Visual Debugger for Rust',
   url: 'https://firedbg.sea-ql.org',
   baseUrl: '/',
   onBrokenLinks: 'throw',
@@ -25,27 +25,32 @@ module.exports = {
       title: 'FireDBG',
       logo: {
         alt: 'FireDBG Logo',
-        src: 'img/SeaQL.png',
+        src: 'img/FireDBG.png',
       },
       items: [
         {
-          type: 'doc',
-          docId: 'index',
+          to: '/install',
+          label: 'Install',
           position: 'left',
-          label: 'Docs',
         },
         // {
-        //   to: '/blog',
-        //   label: 'Blog',
-        //   position: 'left'
+        //   type: 'doc',
+        //   docId: 'index',
+        //   position: 'left',
+        //   label: 'Docs',
         // },
         {
-          href: 'https://crates.io/crates/firedbg',
-          label: 'Crate',
+          to: '/blog',
+          label: 'Blog',
+          position: 'left'
+        },
+        {
+          href: 'https://marketplace.visualstudio.com/items?itemName=SeaQL.firedbg-rust',
+          label: 'VS Code',
           position: 'right',
         },
         {
-          href: 'https://github.com/SeaQL/firedbg',
+          href: 'https://github.com/SeaQL/FireDBG.for.Rust',
           label: 'GitHub',
           position: 'right',
         },
@@ -59,25 +64,25 @@ module.exports = {
     footer: {
       style: 'dark',
       links: [
-        {
-          title: 'Docs',
-          items: [
-            {
-              label: 'Getting Started',
-              to: '/docs/index',
-            },
-            {
-              label: 'API Reference',
-              to: 'https://docs.rs/firedbg/latest/firedbg/',
-            },
-          ],
-        },
+        // {
+        //   title: 'Docs',
+        //   items: [
+        //     {
+        //       label: 'Getting Started',
+        //       to: '/docs/index',
+        //     },
+        //     {
+        //       label: 'API Reference',
+        //       to: 'https://docs.rs/firedbg/latest/firedbg/',
+        //     },
+        //   ],
+        // },
         {
           title: 'Community',
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/SeaQL/firedbg/discussions',
+              href: 'https://github.com/SeaQL/FireDBG.for.Rust/discussions',
             },
             {
               label: 'Discord',
@@ -96,10 +101,18 @@ module.exports = {
               label: 'About Us',
               to: '/about-us',
             },
-            // {
-            //   label: 'Blog',
-            //   to: '/blog',
-            // },
+            {
+              label: 'Blog',
+              to: '/blog',
+            },
+            {
+              label: 'EULA',
+              to: '/eula',
+            },
+            {
+              label: 'Privacy',
+              to: '/privacy',
+            },
           ],
         },
       ],
@@ -108,6 +121,9 @@ module.exports = {
       ].join(''),
     },
     prism: {
+      // Themes: https://github.com/FormidableLabs/prism-react-renderer/tree/master/packages/prism-react-renderer/src/themes
+      theme: require('prism-react-renderer/themes/vsLight'),
+      darkTheme: require('prism-react-renderer/themes/vsDark'),
       additionalLanguages: [
         'toml',
         'rust',
@@ -119,6 +135,15 @@ module.exports = {
     //   indexName: 'seaorm',
     //   contextualSearch: true,
     // },
+    imageZoom: {
+      // CSS selector to apply the plugin to, defaults to '.markdown img'
+      selector: '.markdown img',
+      options: {
+        margin: 12,
+        scrollOffset: 80,
+        background: '#AABBCC00',
+      },
+    },
   },
   presets: [
     [
@@ -126,7 +151,7 @@ module.exports = {
       {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl: 'https://github.com/SeaQL/firedbg.sea-ql.org/edit/master/FireDBG/',
+          editUrl: 'https://github.com/SeaQL/firedbg.sea-ql.org/edit/main/FireDBG/',
           showLastUpdateAuthor: true,
           showLastUpdateTime: true,
           // versions: {
@@ -136,8 +161,12 @@ module.exports = {
           // },
         },
         blog: {
+          routeBasePath: '/blog',
           showReadingTime: true,
-          editUrl: 'https://github.com/SeaQL/firedbg.sea-ql.org/edit/master/FireDBG/',
+          editUrl: 'https://github.com/SeaQL/firedbg.sea-ql.org/edit/main/FireDBG/blog',
+          blogSidebarTitle: 'All Posts',
+          blogSidebarCount: 'ALL',
+          postsPerPage: 'ALL',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
@@ -149,7 +178,10 @@ module.exports = {
       },
     ],
   ],
+  plugins: [
+    'plugin-image-zoom',
+  ],
   scripts: [
-    '/sea-ql.js',
+    '/firedbg.js',
   ],
 };

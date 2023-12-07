@@ -5,7 +5,7 @@ on:
     paths-ignore:
       - '.github/ISSUE_TEMPLATE/**'
     branches:
-      - master
+      - main
 
 concurrency:
   group: firedbg.sea-ql.org
