@@ -19,12 +19,12 @@ function HomepageHeader() {
         <h2 className="hero__subtitle">{siteConfig.tagline}</h2>
         <p className="hero__subtitle">Visualize and debug Rust programs with a new lens</p>
         <div className={styles.buttons}>
-          <Link
+          {/* <Link
             className="button button--secondary button--lg"
             to="/blog/2023-12-12-introducing-firedbg">
             Learn More
           </Link>
-          &nbsp;&nbsp;
+          &nbsp;&nbsp; */}
           <Link
             className="button button--primary button--lg"
             to="/blog/2023-12-13-getting-started/">
