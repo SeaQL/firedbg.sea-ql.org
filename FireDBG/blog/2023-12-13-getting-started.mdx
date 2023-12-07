@@ -35,7 +35,10 @@ Before we start, make sure you have VS Code and Rust installed.
 
 ### FireDBG VS Code Extension
 
-The Extension provide seamless code and debug experience to maximaize developer productivity. Search and install the [`SeaQL.firedbg-rust`](https://marketplace.visualstudio.com/items?itemName=SeaQL.firedbg-rust) extension. To keep the `.vsix` package small in size, we didn't ship the FireDBG binaries and library with the Extension. Instead, we have a dedicated installer for the FireDBG binaries.
+The Extension provides seamless integration with FireDBG to enhance debugging experience and developer productivity.
+Search and install the [`SeaQL.firedbg-rust`](https://marketplace.visualstudio.com/items?itemName=SeaQL.firedbg-rust) extension.
+To keep the `.vsix` package small in size, we dont't ship the platform-specific binaries with the Extension.
+Instead, we have a dedicated installer script for the FireDBG binaries.
 
 ### FireDBG Binaries
 
@@ -67,6 +70,8 @@ Download the [zipped source code](https://codeload.github.com/SeaQL/FireDBG.Rust
 ```shell
 git clone git@github.com:SeaQL/FireDBG.Rust.Testbench.git
 ```
+
+Note that the root directory of testbench isn't a Cargo workspace. In the following sections, please open each sub-folder (e.g. `getting-started`, `roll_dice`...) in VS Code.
 
 ### Debug Targets and Runs
 
