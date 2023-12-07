@@ -144,6 +144,11 @@ module.exports = {
         background: '#AABBCC00',
       },
     },
+    announcementBar: {
+      id: 'firedbg-bar',
+      content: 'This not announced yet 🥷🏻',
+      isCloseable: false,
+    },
   },
   presets: [
     [
