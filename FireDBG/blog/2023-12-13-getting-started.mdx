@@ -34,6 +34,15 @@ Before we start, make sure you have VS Code and Rust installed.
 - VS Code (version 1.80.0 or later)
 - Rust (version 1.74.0 or later)
 
+### Rust & Cargo
+
+```shell
+# install rustup
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# install stable
+rustup install stable
+```
+
 ### FireDBG VS Code Extension
 
 The Extension provides seamless integration with FireDBG to enhance debugging experience and developer productivity.
@@ -60,7 +69,11 @@ Or, you can run the installer manually.
 curl https://raw.githubusercontent.com/SeaQL/FireDBG.for.Rust/main/install.sh -sSf | sh
 ```
 
-FireDBG binaries will be installed in `~/.cargo/bin` and a debugger self test will be conducted to verify the installation.
+FireDBG binaries will be installed in `~/.cargo/bin` and a debugger self test will be conducted to verify the installation. Expect to see:
+
+```shell
+info: completed FireDBG self tests
+```
 
 In case you got error messages when performing self test, read [Troubleshooting Guide](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/Troubleshooting.md) for the solution of common errors.
 
@@ -72,7 +85,7 @@ Download the [zipped source code](https://codeload.github.com/SeaQL/FireDBG.Rust
 git clone git@github.com:SeaQL/FireDBG.Rust.Testbench.git
 ```
 
-Note that the root directory of testbench isn't a Cargo workspace. In the following sections, please open each sub-folder (e.g. `getting-started`, `roll_dice`...) in VS Code.
+Note that the root directory of testbench isn't a Cargo workspace. In the following sections, please open each sub-folder (e.g. `getting-started`, `roll_dice`...) in VS Code. For convenience, each example already included a sample run.
 
 ### Debug Targets and Runs
 
