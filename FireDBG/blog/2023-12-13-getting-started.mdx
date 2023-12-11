@@ -22,10 +22,10 @@ In this blog post, we will cover the basic usage of FireDBG VS Code Extension ("
 - How to selectively enable / disable tracing of a local package
 - How to use the CLI to operate FireDBG debugger and then interpret and inspect breakpoint events via SQLite
 
-<!-- If you're curious about the background and inner working of FireDBG
+If you're curious about the background and inner working of FireDBG
 
 - [Introducing FireDBG for Rust 🔥](/blog/2023-12-12-introducing-firedbg)
-- [Architecture of FireDBG](/blog/2023-12-11-architecture-of-firedbg) -->
+- [Architecture of FireDBG](/blog/2023-12-11-architecture-of-firedbg)
 
 ## Installation
 
@@ -85,7 +85,7 @@ Download the [zipped source code](https://codeload.github.com/SeaQL/FireDBG.Rust
 git clone git@github.com:SeaQL/FireDBG.Rust.Testbench.git
 ```
 
-Note that the root directory of testbench isn't a Cargo workspace. In the following sections, please open each sub-folder (e.g. `getting-started`, `roll_dice`...) in VS Code. For convenience, each example already included a sample run.
+Note that the root directory of testbench isn't a Cargo workspace. In the next section, please open each sub-folder (e.g. `getting-started`) in VS Code. For convenience, each example already included a sample run.
 
 ### Debug Targets and Runs
 
@@ -94,10 +94,10 @@ Where can I see the list of all debuggable Rust targets, how can I debug it and 
 <Image src="/img/gt-debug-and-run-light.png"/>
 
 1. Click on the "Run and Debug" panel on your primary sidebar, you should see two new panels on the bottom
-2. The `FIREDBG` panel should display all binaries, examples, integration tests and unit tests in your current Rust workspace. Click on the list item to reveal the Rust source code. To debug it, hover the list item and click on the play icon ▶️ on the list item. A new debug view will be shown and tail the progress in real time. 
-3. All previous debug runs can be found in the `FIREDBG RUNS` panel, simply click on it to reveal.
+2. The `FIREDBG` panel should display all binaries, examples, integration tests and unit tests in your current Rust workspace. Click on the list item to reveal the Rust source code. To debug it, hover the list item and click on the play icon ▶️ on the list item. A new debugger view will be shown and tail the progress in real time. 
+3. All previous debug runs can be found in the `FIREDBG RUNS` panel, simply click on it to open.
 
-Alternatively, you can list all debuggable Rust targets via the CLI:
+Alternatively, you can list all debuggable Rust targets with the CLI:
 
 ```shell
 $ firedbg list-target
@@ -106,7 +106,7 @@ Available binaries are:
 	roll_dice
 ```
 
-And, list all previous runs via the CLI:
+And, list all previous runs with the CLI:
 
 ```shell
 $ firedbg list-run
@@ -121,13 +121,13 @@ How to interpret and inspect visualized call tree, variables, timeline and threa
 
 <Image src="/img/gt-vis-debugger-light.png"/>
 
-We can the open the debug view by clicking the items in the `FIREDBG RUNS` panel, or with the `open` command:
+We can the open the debugger view by clicking the items in the `FIREDBG RUNS` panel, or with the `open` command:
 
 ```shell
 firedbg open
 ```
 
-1. Each node represent a function call; the depth of each node resemble the depth of the function call in the call stack; There are two types of edge:
+1. Each node represent a function call; the depth of each node indicates the depth of the call stack; each node has a unique frame ID; there are two types of edge:
 	- Function call with return value: `-<->-`
 	- Function call only: `-->--`
 2. If the program exited with a panic, the panicking function will be highlighted in red with an exclamation mark.
@@ -141,16 +141,18 @@ firedbg open
 
 #### Controls
 
-How to time travel debug and how to navigate and zoom through the program execution flow?
+How to navigate the program execution flow?
 
 <Image src="/img/gt-vis-debugger-control-light.png"/>
 
-1. Use the control buttons on the timebar to jump to the beginning or the end of program execution. Use `J/K` on your keyboard or stepping button to step backward and forward. Click on the timebar would jump to the exact function call.
-2. The visualization will be updated as you traverse the call tree. Use `W/A/S/D` keys on your keyboard or your left mouse click to pan; Click the `+/-` buttons on the bottom right or `-/=` on your keyboard or use your mouse scroll wheel to zoom. To resize the panel, move the mouse to the panel edge then drag to resize.
+1. Use the control buttons on the timebar to jump to the beginning or the end of program execution. Use `J` `K` on your keyboard or stepping buttons `<` `>` to step one frame backward or forward. The unit of time on the timebar is frame ID of the selected thread. Clicking on the timebar would jump to the exact function call.
+2. The visualization will be updated as you traverse the call tree. Use `W` `A` `S` `D` keys on your keyboard or your left mouse click to pan; Click the `+|-` buttons on the bottom right or `-` `=` on your keyboard or use your mouse scroll wheel to zoom.
+
+To resize a panel, hover the mouse on the panel gutter then drag to resize. Tip: double clicking the gutter reverts the panel to a pre-defined size.
 
 ### FireDBG Sidebar
 
-How to retrieve the detailed debug info?
+How to retrieve detailed debug info?
 
 <Image src="/img/gt-sidebar-light.png"/>
 
@@ -189,7 +191,7 @@ You can get the help messages by appending the `--help` flag.
 ## FireDBG Workspace
 
 [Cargo workspace](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html) is a set of crates sharing the same `Cargo.lock` and `target` directory.
-FireDBG rely on Cargo to locate source files and target for debugging.
+FireDBG rely on Cargo to locate source files and targets for debugging.
 
 Now you have a basic understanding on the usage of FireDBG.
 Let's create a Cargo workspace and practice debugging with FireDBG!
@@ -285,11 +287,17 @@ mod test {
 }
 ```
 
-Click on the debug icon on the left to start debugging the unit test.
-We found that it's quite hard to inspect what elements are swapped in each partition.
+Click on the debug icon on the left to start debugging the unit test. Or with the CLI:
+
+```shell
+firedbg unit-test quicksort test::test_quicksort_1
+```
+
+Oooops... assertion failure!
 
 <Image src="/img/gt-unit-test-light.png"/>
 
+We found that it's quite hard to inspect what elements are swapped in each `partition`.
 To help debugging, we can add a `swap` function and rewrite the original code:
 
 ```diff
@@ -326,15 +334,9 @@ fn partition<T: PartialOrd>(arr: &mut [T], low: isize, high: isize) -> isize {
 
 > Tip: you can add `#[cfg_attr(not(debug_assertions), inline)]` to the `swap` function to inline it in release build, so that it will not incur any overhead.
 
-Now, we can easily see the `swap` and what has been swapped. Upon closer inspection we will see a pattern, i.e. the first element of each partition is always untouched. That's the bug!
+Now, we can clearly see what was swapped and how many times `swap` was called. Upon a closer inspection we will see a pattern, i.e. the first element is always untouched in all `partition` operations. That's the bug 🐛!
 
 <Image src="/img/gt-unit-test-swap-light.png"/>
-
-Alternatively, you can debug unit test via the CLI:
-
-```shell
-firedbg unit-test quicksort test::test_quicksort_1
-```
 
 ### `fire::dbg!` Trace Macro
 
@@ -382,7 +384,7 @@ fn partition<T: PartialOrd>(arr: &mut [T], low: isize, high: isize) -> isize {
 ```
 
 This time the swap is shown in the variables of the partition function.
-As expected, we see 3 swaps. This should help us to observe the pattern, locate and fix the bug.
+As expected, we see 3 swaps. This should help us to observe the pattern, locate and fix the bug 🔎!
 
 <Image src="/img/gt-unit-test-dbg-light.png"/>
 
@@ -416,7 +418,7 @@ fn test_quicksort_1() {
 
 <Image src="/img/gt-integration-test-light.png"/>
 
-Alternatively, you can debug integration test via the CLI:
+Alternatively, you can debug integration test with the CLI:
 
 ```shell
 firedbg test bookshelf test_quicksort_1
@@ -486,7 +488,7 @@ firedbg run quicksort -- 18 --seed 2828
 
 Examples work the same as binary targets, just that they are located under the `examples/` directory.
 
-We can also debug example via the CLI:
+We can also debug example with the CLI:
 
 ```shell
 firedbg example random100
@@ -591,7 +593,7 @@ Now, we can see the function calls of the `quicksort` crate!
 ## The Event Index
 
 When you open a `.firedbg.ss` file, FireDBG indexer will create a `.sqlite` file to store the analyzed debug info.
-You can also run the indexer manually with the `firedbg index` sub-command.
+You can also run the indexer manually with the `firedbg index` sub-command. You can now write SQL queries to your heart's content!
 
 <Image src="/img/gt-sqlite-light.png"/>
 
