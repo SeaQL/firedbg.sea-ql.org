@@ -1,0 +1,137 @@
+---
+slug: 2023-12-11-architecture-of-firedbg
+title: Architecture of FireDBG
+author: Chris Tsang
+author_title: FireDBG Team
+author_url: https://github.com/tyt2y3
+author_image_url: https://avatars.githubusercontent.com/u/1782664?v=4
+image: https://firedbg.sea-ql.org/img/dataflow-dark.png
+tags: [news]
+---
+
+import { Image } from '../src/themed.js';
+
+## Under the hood of FireDBG
+
+<Image src="/img/components-dark.png">
+    Component diagram of FireDBG
+</Image>
+
+### `firedbg-cli`
+
+`firedbg-cli` drives everything. It acts as a proxy to `cargo`, so a `cargo run` command becomes `firedbg run`, `cargo test` becomes `firedbg test` and so on. `firedbg-cli` also relies on `cargo` to list all the executable targets shown in the "Run and Debug" tab of VS Code.
+
+### `parser`
+
+`firedbg-parser` parses all source files in the workspace and outputs a symbol table per file. These `.map` files are cached, so they will be reused if the source files are unchanged since the last parse.
+
+### `debugger`
+
+`firedbg-debugger` is the debugging engine of FireDBG. It is configured according to `firedbg.toml`. The debugger drives the target process via `lldb` and streams the breakpoint events in real-time. The output file, with the extension `.firedbg.ss`, follows the binary file format defined in [SeaStreamer File](https://github.com/SeaQL/sea-streamer#sea-streamer-file-file-backend).
+
+It sometimes uses `rustc` on the host for miscellaneous things.
+
+### `indexer`
+
+`firedbg-indexer` is a streaming indexer. It can stream events from the `.firedbg.ss` file and process them in real-time. It outputs a `.sqlite` file with the same name, using [SeaORM](https://github.com/SeaQL/sea-orm) to drive SQLite. The index enables the GUI to quickly look up the call chain and frame info.
+
+## Mode of operation
+
+### Overview
+
+<Image src="/img/dataflow-dark.png">
+    Data flow diagram of FireDBG
+</Image>
+
+The basic idea of FireDBG is to automate the actions done by a user on a debugger CLI/TUI/GUI. For example, a user would usually set some breakpoints at some strategic locations and inspect all local variables every time a breakpoint is hit. FireDBG does the same! But our goal is to make each breakpoint hit as brief as possible, in order to keep the program-under-debug running in real-time. This is important because some resources like sockets and timers are time sensitive.
+
+This mode of operation is called "galloping"[^1], as it only breaks on user code - library code and system calls are all skipped. In other words, the call tree we construct is not the full process call tree; it's down-sampled. In theory, we can use a VM to execute and record[^2] the process, then run it through FireDBG to condense the data.
+
+The thesis is: "too much details obfuscate our understanding", and more often than not, we want to see the big picture. FireDBG lays out the call tree on a plane, so our brain can make sense of the two-dimensional space. The UX of the GUI is designed based on modern interactive maps[^3].
+
+### Static Analysis
+
+We parse the Rust source files with `syn`, looking for all functions, methods, and trait implementation blocks. The location and span of these functions are then dumped into `.map` files. In the future, we're hoping to support constructing a static call graph, so as to allow the debugger to only set breakpoints at functions reachable from `main` (or the program entry point, whatever it is).
+
+### Runtime Debugging
+
+On startup, the symbol tables are read. After loading the target executable into memory, the debugger loads the corresponding symbol tables and set breakpoints at those functions according to the configuration. We also set breakpoints on the panic handler and heap allocators.
+
+The program will then be run. The debugger keeps a logical stack model for each thread. On each function call, a new frame ID will be assigned. The tuple (thread ID, frame ID, function call) uniquely identifies any point in program execution.
+
+When a function is first called, we disassemble it. Then breakpoints are set at all `ret` instructions, so that whenever the function returns, the breakpoints will be hit, and a function return event is recorded. (We also cache the `SBType` definition of the function, with which the function return handler can salvage the return value from the registers, but this is an implementation detail). All parameters of the function are captured once the program has gone past the prologue[^4].
+
+All breakpoint events happening meanwhile will be tagged with the current frame ID in the current thread.
+
+All events will be streamed out in real-time. The format of the stream events is defined in [`firedbg-protocol`](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/protocol).
+
+#### Multi-threading
+
+It is actually possible to debug multiple threads by hand using a conventional GUI debugger, you just need to know this one trick ;)
+
+Multiple threads can be hitting the same breakpoint at the same time, so we need to inspect all the threads each time a breakpoint is hit. We look at the PC address to determine whether this thread was actually paused on a breakpoint, and if so, record the event. All threads are resumed as soon as possible.
+
+### Value Capture
+
+Value capture is currently done via `lldb`'s excellent `SBValue` / `SBType` API. There are some edge cases, particularly around Rust's "complex enums" aka union types. There are many hacks[^5] done by [`firedbg-debugger`](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/debugger/src/debugger.rs) to [capture various Rust standard types](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/debugger/src/value/writer.rs), including but not limited to `Vec<u8>`, `&str`, `&dyn T`, `Rc/Arc`, `HashMap`.
+
+[Return value capture](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/debugger/src/debugger/return_value.rs) is currently done by looking at the return type and guessing where it will be placed at, registers or stack, and salvage the value. More ideally, we would query the call convention and extract accordingly.
+
+All values are serialized as binary blobs in native endian. There are several motivations: 1) faithfulness 2) avoiding floating point and utf-8 idiosyncrasies[^6] 3) avoiding serialization to strings which is slow 4) smaller file size.
+
+### Event Index
+
+The indexer reconstructs the call stack for each thread from the event stream. It then represents the call trees in SQL by self-references[^7]. It also performs basic analysis like counting hits for each breakpoint.
+
+The indexer deserializes the value blobs and transforms them into pretty-printed strings and JSON. They will then be queried by the GUI for display and visualization.
+
+The [SeaORM schema](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/indexer/src/entity/) is defined in [`firedbg-indexer`](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/indexer/).
+
+## Parallelism
+
+<Image src="/img/parallelism-dark.png">
+    Parallelism in FireDBG; outer boxes: processes; inner boxes: threads
+</Image>
+
+A lot of effort has been put in making FireDBG to improve responsiveness. The previous diagram shows the pipeline where data is streamed real-time. This diagram gives a different perspective: how the components work in parallel.
+
+The Debugger, Indexer and GUI are separate processes, and each uses multiple threads for stream producer and consumer. Except in node.js the streamer is a subprocess instead of a thread.
+
+The Call Tree Renderer is incremental: nodes are added on canvas as they arrive.
+
+## Support for other languages
+
+Our vision is to bring FireDBG to *all* programming languages. Some possible candidates are:
+
++ C++: supported by `lldb`; but it is difficult to distinguish user code from library code
++ Swift: supported by `lldb`; but need to support a lot of Apple system stuff
++ Go: `delve` seems very API drivable!
++ node.js: we can use the DevTools Protocol
++ Python: `debugpy` seems very promising
++ Your favourite language: suggestions are welcome!
+
+When designing this architecture, we have been keeping in mind how we'd piece in other languages. Each language would have its own `firedbg-xxx-debugger`, outputting the same `.firedbg.ss` stream protocol. Primitives can more or less be shared so we can reuse the same `PValue`. `RValue` actually stands for "Rust Value", so you can assume we'd have `GoValue` for Go, `JsValue` for Javascript, etc.
+
+We will ship multiple `indexer` binaries, but they will likely share the same codebase.
+
+The CLI will be each implemented in its own language.
+
+The GUI will all share the same codebase, but of course each language will have its own VS Code extension.
+
+Rust probably has the most complex type system[^8], hopefully it will not get much more complicated than what we have already implemented.
+
+The async programming model should be similar among languages, so we should be able to visualize them under the same model.
+
+### Pure functional languages
+
+The call tree visualization is universal to all programming languages[^9]. Other than that I have not thought about other parts yet.
+
+[^1]: Or "tiptoeing", which is better?
+[^2]: Or `rr`, but we don't have a gdb driver yet
+[^3]: You can pan with click-and-drag (or three finger drag on macOS), scroll to zoom; we also have (x, y) coordinates: x-axis is the depth, y-axis is the breadth in the tree
+[^4]: Sometimes the function prologue is wrong and FireDBG currently has some logic to guess the prologue
+[^5]: Many; maybe in the next version we will abandon debug symbols altogether
+[^6]: They are not interpreted on serialization; only on deserialization which is the job of the indexer
+[^7]: If we have a MySQL backend, a single recursive CTE query can reconstruct the call chain of a given frame
+[^8]: *Probably*
+[^9]: We can probably make one for [Lisp](https://lispcookbook.github.io/cl-cookbook/debugging.html#trace) too
