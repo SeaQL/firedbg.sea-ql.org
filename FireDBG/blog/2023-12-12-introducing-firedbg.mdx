@@ -1,0 +1,299 @@
+---
+slug: 2023-12-12-introducing-firedbg
+title: Introducing FireDBG for Rust 🔥
+author: Chris Tsang
+author_title: FireDBG Team
+author_url: https://github.com/tyt2y3
+author_image_url: https://avatars.githubusercontent.com/u/1782664?v=4
+image: https://firedbg.sea-ql.org/img/banner-introducing-firedbg.png
+tags: [news]
+---
+
+import { Video, Image } from '../src/themed.js';
+
+## Debugging programs is hard
+
+Debugging programs is hard. It is extremely mind boggling when something does not work as expected. More often than not 90% of the work is on tracking down *where* the bug is, and 10% is actually solving it!
+
+But why don't programmers use debuggers more often these days? Instead, we all enjoy adding `println` all over the place, running the program, adding more prints, rinse and repeat, just to find out that we still haven't printed the key variable and may even need to make guesses about the program state while drowning in the logs.
+
+A running program is like a blackbox to us, and the console is our only window into its internal states. However, at the end of the day, it is still the programmer's responsibility to print the relevant information.
+
+How does a debugger help us debug a program? We identified that it usually comes down to:
+
++ Where did the control flow of my program go?
++ Where do my errors come from?
++ What are inside my variables?
++ What happened in what order?
+
+### That's why we created FireDBG - a Time Travel Visual Debugger for Rust 🎬
+
+<Video src="/img/quicksort-mac-light.mp4" />
+
+## Time travel debugging
+
+According to Wikipedia, time travel debugging is the process of stepping back in time through source code to understand what is happening during execution of a computer program. Unlike "traditional" debuggers which can only step forward, time travel debuggers allow us to step backward and see the cause and effects.
+
+Time travel debuggers exist[^1], and they usually work by recording data on the instruction level. But that would result in a gigantic amount of data, so now the question is: how do we make sense of this data and *navigate through time* effectively?
+
+## Call tree - the trail across the forest
+
+Let's take a look at the following call tree for an implementation of quicksort:
+
+```rust
+pub fn run<T: PartialOrd>(arr: &mut [T]) {
+    let len = arr.len();
+    quick_sort(arr, 0, (len - 1) as isize);
+}
+
+fn quick_sort<T: PartialOrd>(arr: &mut [T], low: isize, high: isize) {
+    if low < high {
+        let p = partition(arr, low, high);
+        quick_sort(arr, low, p - 1);
+        quick_sort(arr, p + 1, high);
+    }
+}
+
+fn partition<T: PartialOrd>(arr: &mut [T], low: isize, high: isize) -> isize {
+    let pivot = high as usize;
+    let mut store_index = low - 1;
+    let mut last_index = high;
+
+    loop {
+        store_index += 1;
+        while arr[store_index as usize] < arr[pivot] {
+            store_index += 1;
+        }
+        last_index -= 1;
+        while last_index >= 0 && arr[last_index as usize] > arr[pivot] {
+            last_index -= 1;
+        }
+        if store_index >= last_index {
+            break;
+        } else {
+            arr.swap(store_index as usize, last_index as usize);
+        }
+    }
+    arr.swap(store_index as usize, pivot as usize);
+    store_index
+}
+```
+
+<Image src="/img/quicksort-light.png">
+    FireDBG screenshot for an <a href="https://github.com/SeaQL/FireDBG.Rust.Testbench/tree/main/quicksort">implementation of quicksort</a>
+</Image>
+
+
+If you instantly get it, you can skip this section! If not, let's go through it step by step:
+
+> "A call tree is all the state transitions of a program's call stack laid out on a 2D plane, organized in form of a tree"
+
+Every time a function call is made, we create a child node; when the function returns, we go back to the parent node. So subsequent function calls become sibling nodes.
+
+<Video src="/img/calltree-light.mp4" />
+
+<p></p>
+
+At any given node, traversing up to the root node gives us a chain - which is the call stack.
+We have two notations, `-->--` for function calls; `--<->--` for function calls with return values.
+We assign a unique frame ID to each node and this is the time sequence used in the timebar.
+
+## Call tree visualization and algorithms
+
+FireDBG is built around the call tree. You may ask, wouldn't this call tree become very large? Yes, that's why we spent enormous effort into linearizing everything. We developed a streaming file format to process the data in real time, and figured out a layout algorithm that can render infinite trees.
+
+What's so interesting about call trees? Their shapes reveal a lot about the properties of algorithms. To illustrate, here's a side-by-side comparison of quicksort and mergesort, and we can see that quicksort yields a deeper tree than mergesort[^2]. So quicksort is using more stack memory[^3] than mergesort, which makes sense because mergesort uses some memory on the heap!
+
+Since both are binary trees, they are not tail-call optimizable. And since both algorithms claim to be of `O(n log n)`, statistically only one of the two branches should grow deeper. There are a lot more to observe and I have been drawing this on paper by hand for many years.
+
+<Image src="/img/quicksort-vs-mergesort-light.png">
+    Comparing <a href="https://github.com/SeaQL/FireDBG.Rust.Testbench/tree/main/quicksort">quicksort</a> and <a href="https://github.com/SeaQL/FireDBG.Rust.Testbench/tree/main/mergesort">mergesort</a> side by side with the same input
+</Image>
+
+## Tracing errors - the error path
+
+This might be a Rust specific problem: Rust don't have exceptions. Instead, Rust uses a `Result` system coupled with the ergonmic `?` operator to effectively signal and handle errors. This has both pros and cons - the good thing is that errors propagate back to the parent along the exact same path the function is being called, which is deterministic and predictable. The bad thing is, when you finally `unwrap` an error and decide to panic, the context of the error has long been lost.
+
+This echos our second question: where do my errors come from? Consider the following toy program, where we get to roll some dice and each time we could be rolling one, two or three dice. Once in a while, throwing a die can cause an error. This is deliberately randomized, so there is no way to statically analyze where the error might come from - such is life!
+
+```rust
+fn roll(i: i32) -> Result<(), ()> {
+    let (a, b, c) = (dice(i), dice(i), dice(i)); a?; b?; c?;
+    if fire::dbg!(fastrand::u32(0..4)) == 0 {
+        roll(i - 1)
+    } else {
+        throw(i - 1)
+    }
+}
+
+fn throw(i: i32) -> Result<(), ()> {
+    match fire::dbg!(fastrand::i32(1..=3)) {
+        1 => { let a = dice(i); a?; }
+        2 => { let (a, b) = (dice(i), dice(i)); a?; b?; }
+        3 => { let (a, b, c) = (dice(i), dice(i), dice(i)); a?; b?; c?; }
+        _ => unreachable!(),
+    }
+    if fire::dbg!(fastrand::bool()) {
+        roll(i - 1)
+    } else {
+        throw(i - 1)
+    }
+}
+
+fn dice(i: i32) -> Result<(), ()> {
+    if fire::dbg!(fastrand::i32(0..i)) == 0 { Err(()) } else { Ok(()) }
+}
+
+fn main() {
+    roll(25).unwrap();
+}
+```
+
+FireDBG captures all functions' return values and so is able to locate where the error originated from and how it propagated up! Here is the rendered call tree of this `roll_dice` program, where FireDBG is able to highlight the error path up until the point of panic, which is conveniently marked by `!`:
+
+<Image src="/img/roll_dice-light.png">
+    A screenshot of the <a href="https://github.com/SeaQL/FireDBG.Rust.Testbench/tree/main/roll_dice"><code>roll_dice</code></a> call tree
+</Image>
+
+## Collecting parameters and return values
+
+As you have seen in the above screenshots, FireDBG captures all functions' parameters and return values. Capturing parameters is the easy part, because it's a basic feature of any debuggers[^4]. But capturing return values is a little intricate. The current implementation is: we set a breakpoint at every `ret` instruction and capture the return value at that *particular* point in time. The next instruction will immediately jump back to the parent function, which may overwrite the value.
+
+Let's talk about ABI. There are different call conventions and Rust is particularly flexible in whether a value is returned via stack or register. In some cases complex data can be packed into one register, because Rust can return complex types like tuples and unions[^5]. We tried super hard, but return value capture is still a hit-or-miss, but some visibility is better than no visibility!
+
+<Image src="/img/quicksort-partition-light.png">
+    Inspecting the parameters and return value of the <code>partition</code> function
+</Image>
+
+## A type system for the Rust type system
+
+We rely on lldb's awesome `SBType` API to parse Rust's debug symbols, and capture variables' values in binary forms - not all things are printable, in particular, pointers (references) and containers. We have to reference the memory locations to get their values. This becomes non-trivial if the references form a diamond or worse, cycles[^6].
+
+For pointers, our brilliant intern[^7] has a great idea - capture and store the pointees as context for each variable and dereference those pointers on replay. Each memory address will only be serialized once, but can be copied many times on deserialization.
+
+As such, we were able to construct a type system that can [represent Rust values](https://github.com/SeaQL/FireDBG.for.Rust/blob/main/protocol/src/value.rs), which are serialized as binary data. We can then visualize them beautifully!
+
+<Image src="/img/car-light.png">
+    The <a href="https://github.com/SeaQL/FireDBG.for.Rust/blob/main/debugger/testcases/object.rs"><code>Car</code> data structure</a> with visualization; left panel: Rust definition
+</Image>
+
+For containers, it is more murky. For vectors, we can simply read a blob of memory from the heap, because the items are contiguous. But ... how about hash maps? Luckily, in Rust, the standard library's hashmap is a [flat hashmap](https://github.com/rust-lang/hashbrown), which means items are densely packed, although not contiguous. So with some [memory fiddling](https://github.com/tyt2y3/frozen-hashbrown), we are able to capture the contents of hashmaps!
+
+Note that in the screenshot below, the hash key is `&str`, which means after extracting the hash keys from the hash map, we have to dereference the pointers to retrieve the string content.
+
+<Image src="/img/hashmap-light.png">
+    Left panel: captured hashmap; middle panel: rendered hashmap; right panel: raw representation of a hashmap
+</Image>
+
+## A new lens into our code
+
+Visualization is a new lens into our code. Above are just a few simple examples, and FireDBG opens the door to domain-specific visualizations that are meaningful to us. Below are a few more examples:
+
+<Image src="/img/sudoku-light.png">
+    A <a href="https://github.com/SeaQL/FireDBG.Rust.Testbench/tree/main/sudoku">Sudoku solver</a>
+</Image>
+
+<Image src="/img/tokenizer-light.png">
+    A <a href="https://github.com/SeaQL/sea-query/blob/master/src/token.rs">SQL tokenizer</a>
+</Image>
+
+<Image src="/img/bubble-code-light.png">
+    My personal favourite - <a href="https://github.com/SeaQL/FireDBG.Rust.Testbench/tree/main/bubble-code">symbolic recognition</a>
+</Image>
+
+## I want to debug *my code* - not system libraries!
+
+We tried our best to boost the signal-to-noise ratio. Instead of `alloc::sync::Arc { core::ptr::non_null::NonNull { alloc::sync::ArcInner { strong: core::sync::atomic::AtomicUsize { .. }, weak: core::sync::atomic::AtomicUsize { .. }, data: pointer::Object { .. } } } }`, we try to prettify standard library types like `Arc` as `RefCounted { strong: 1usize, weak: 1usize, value: pointer::Object { .. } }`.
+
+FireDBG only traces user code - not standard library, not vendor libraries - only the code inside the specific crate you are currently programming. Which means the call tree will only contain functions you wrote. No implementation details like `<I as alloc::vec::in_place_collect::SpecInPlaceCollect<T,I>>::collect_in_place`.
+
+Which also means that the overhead of program tracing is confined - even with a very complex program, the subset of user code that we want to trace would only be a fraction of the program binary.
+
+## Multi-threaded programming 🎬
+
+<Video src="/img/timeline-mac-light.mp4" />
+
+Rust's slogan is "Fearless Concurrency", so how do we debug multi-threaded Rust programs? It's possible to pause and step through a multi-threaded program, but doing so manually would affect the timing and synchronization of other threads.
+
+FireDBG can track multiple threads and keep them running as smoothly as possible, allowing us to observe how multiple threads work together. It's a proof-of-concept, but let's take a look at a small Rust program that spawns multiple worker threads to perform matrix computation:
+
+```rust
+fn inverse(m: &Matrix<D, D>) -> Option<Matrix<D, D>> {
+    fire::dbg!("return", Matrix::inv(m))
+}
+
+fn runner(receiver: Receiver<Matrix<D, D>>, sender: Sender<(Matrix<D, D>, Option<Matrix<D, D>>)>) {
+    while let Ok(m) = receiver.recv() {
+        // send back the input with solution
+        let mm = inverse(&m);
+        sender.send((m, mm)).unwrap();
+    }
+}
+
+fn main() {
+    let (result, collector) = channel();
+    let mut senders = Vec::new();
+    for _ in 0..THREADS {
+        // spawn worker threads
+        let (sender, receiver) = channel();
+        senders.push(sender);
+        let result = result.clone();
+        std::thread::spawn(move || runner(receiver, result));
+    }
+
+    for c in 0..ITEMS {
+        // spmc; fan out
+        let m = Matrix::<D, D>::random();
+        senders[c % THREADS].send(m).unwrap();
+    }
+
+    for _ in 0..ITEMS {
+        // mpsc; consolidate
+        let (m, mm) = collector.recv().unwrap();
+        println!("Source  = {m:?}");
+        println!("Inverse = {mm:?}");
+    }
+}
+```
+
+<Image src="/img/multi-thread-light.png">
+    Top panel: a matrix and its inverse computed by a worker thread; bottom panel: timeline showing events across all threads within a specific time window
+</Image>
+
+## The vision
+
+What you see today is an MVP of FireDBG. It may be slow and buggy, and notably, async Rust support is still a work-in-progress. But it outlines the vision I have for what a debugger could be and how it can level up our debugging experience. I still have a dozen of visualization ideas: channels, mutexes, arc/rc graph, async timeline, etc.
+
+We aim to bring FireDBG to other programming languages and engineering domains. Our ultimate goal is to improve the debugging experience for all developers!
+
+## Let's work together!
+
+### Call for stargazers
+
+Please star our [GitHub repo](https://github.com/SeaQL/FireDBG.for.Rust)! Your support is vital. Even if you are not a Rust developer, let us know your thoughts too.
+
+### Call for early adopters
+
+If you think your use case can be drastically improved by having a visual debugger, let's collaborate and shape the product together[^8].
+
+### Call for co-founder
+
+I am looking for a co-founder. If you are like me, deeply passionate about developer experience and willing to commit to this idea, let's team up and embark on a journey to transform software engineering. You can find my profile on [YC Co-Founder Matching](https://www.startupschool.org/cofounder-matching/candidate/hy22iDvPx)[^9].
+
+## Acknowledgement
+
+Many great software inspired me, but two of them is worth mentioning: [Firebug](https://getfirebug.com/index.html) and [Flame Graph](https://www.brendangregg.com/flamegraphs.html). Firebug changed web development forever, and is the predecessor to the awesome browser developer tools we enjoy today.
+
+Flame Graph is the classic example of how a simple but powerful idea became ubiquitous, and it really demonstrates the magic of visualization. Good visualization enlightens our brains.
+
+A huge thanks to the [CodeLLDB](https://github.com/vadimcn/codelldb) project, which powers FireDBG's lldb driver. In case you're wondering, FireDBG uses both [SeaORM](https://github.com/SeaQL/sea-orm) and [SeaStreamer](https://github.com/SeaQL/sea-streamer) under the hood. And of course none of this could be possible without the Rust programming language and the awesome Rust community!
+
+[^1]: WinDBG, rr
+[^2]: Probably because of bad pivot selection
+[^3]: A deep call stack could harm performance or at least pose a risk of overflow
+[^4]: Except not really, in some cases the function prologue is wrong
+[^5]: Aa future blog post will be published to explain the intricacies
+[^6]: Although normal, safe Rust programs should not have reference cycles
+[^7]: Who would rather not be named
+[^8]: Feel free to reach us via GitHub or email
+[^9]: Please do not DM me; let's connect on the platform
