@@ -28,7 +28,7 @@ You can also run the indexer manually with the <code>firedbg index</code> sub-co
             <category>news</category>
         </item>
         <item>
-            <title><![CDATA[Introducing FireDBG for Rust 🔥]]></title>
+            <title><![CDATA[Introducing FireDBG for Rust]]></title>
             <link>https://firedbg.sea-ql.org/blog/2023-12-12-introducing-firedbg</link>
             <guid>https://firedbg.sea-ql.org/blog/2023-12-12-introducing-firedbg</guid>
             <pubDate>Tue, 12 Dec 2023 00:00:00 GMT</pubDate>
