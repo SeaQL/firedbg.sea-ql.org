@@ -1,0 +1,22 @@
+
+## There was once an lldb for Rust
+
+It was on the `rustc/8.0-2019-03-18` branch:
+
+https://github.com/rust-lang/llvm-project/commits/rustc/8.0-2019-03-18/lldb/source/Plugins/LanguageRuntime
+
+It was removed on upgrade to LLVM 9:
+
+https://github.com/rust-lang/llvm-project/pull/19
+
+According to `@vadimcn`, the maintain of `codelldb`:
+
+https://github.com/vadimcn/codelldb/issues/368
+
+The tracking issue for shipping lldb with Rust:
+
+https://github.com/rust-lang/rust/issues/48168
+
+The tracking issue for shipping gdb with Rust:
+
+https://github.com/rust-lang/rust/issues/34457
