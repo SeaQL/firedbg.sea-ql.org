@@ -46,9 +46,20 @@ rustup install stable
 ### FireDBG VS Code Extension
 
 The Extension provides seamless integration with FireDBG to enhance debugging experience and developer productivity.
-Search and install the [`SeaQL.firedbg-rust`](https://marketplace.visualstudio.com/items?itemName=SeaQL.firedbg-rust) extension.
+Search and install the [`FireDBG`](https://marketplace.visualstudio.com/items?itemName=SeaQL.firedbg-rust) extension.
 To keep the `.vsix` package small in size, we dont't ship the platform-specific binaries with the Extension.
 Instead, we have a dedicated installer script for the FireDBG binaries.
+
+#### Windows Notes
+
+<Image src="/img/gt-windows-light.png"/>
+
+We only support Windows under WSL 2 right now, so please follow these steps on Windows:
+
+0. Install [Ubuntu 22.04](https://apps.microsoft.com/detail/9PN20MSR04DW?hl=en-US&gl=US)
+1. Install the [WSL extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-wsl)
+2. Click `><` on the bottom left, and select "Connect to WSL"
+3. Install the [`FireDBG`](https://marketplace.visualstudio.com/items?itemName=SeaQL.firedbg-rust) extension
 
 ### FireDBG Binaries
 
