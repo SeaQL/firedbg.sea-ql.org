@@ -47,8 +47,6 @@ rustup install stable
 
 The Extension provides seamless integration with FireDBG to enhance debugging experience and developer productivity.
 Search and install the [`FireDBG`](https://marketplace.visualstudio.com/items?itemName=SeaQL.firedbg-rust) extension.
-To keep the `.vsix` package small in size, we dont't ship the platform-specific binaries with the Extension.
-Instead, we have a dedicated installer script for the FireDBG binaries.
 
 #### Windows Notes
 
@@ -63,12 +61,13 @@ We only support Windows under WSL 2 right now, so please follow these steps on W
 
 ### FireDBG Binaries
 
-Building FireDBG from source can be tricky, so we provided prebuilt binaries for the following CPU and OS combination:
+To keep the `.vsix` package small in size, we dont't ship the platform-specific binaries with the Extension.
+Instead, we have a dedicated installer script for the FireDBG binaries. We provide prebuilt binaries for the following CPU and OS combination:
 
 |                | Linux[^1] | macOS[^2] | Windows (WSL 2)[^3] |
 |---------------:|:---------:|:---------:|:-------------------:|
-| x64            | ✅        | ✅        | ✅                   |
-| arm64          | ⛔️        | ✅        | ⛔️                   |
+| x64            | ✅        | ✅ Intel | ✅                   |
+| arm64          | ⛔️        | ✅ Apple | ⛔️                   |
 
 Once the the Extension has been installed, you should see a prompt hinting that FireDBG binaries are missing. Click on the "install" button to run the installer.
 
