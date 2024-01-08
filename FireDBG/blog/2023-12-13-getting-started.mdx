@@ -488,11 +488,22 @@ fn main() {
 
 <Image src="/img/gt-binary-light.png"/>
 
-We can use the FireDBG CLI to pass additional parameters to the Rust binary:
+We can add a `[[target]]` entry in `firedbg.toml` to create additional profiles:
+
+```toml
+[[targets]]
+name = "quicksort_100"
+target.type = "binary"
+target.name = "quicksort"
+argv = ["100", "--seed", "1212"]
+```
+
+See the [full example](https://github.com/SeaQL/FireDBG.Rust.Testbench/blob/main/getting-started/firedbg.toml).
+
+Or use the FireDBG CLI to pass additional parameters to the Rust binary:
 
 ```shell
-# Randomly generate 18 numbers with the random seed 2828, then sort it in ascending order
-firedbg run quicksort -- 18 --seed 2828
+firedbg run quicksort -- 100 --seed 1212
 ```
 
 ### Debugging Examples
