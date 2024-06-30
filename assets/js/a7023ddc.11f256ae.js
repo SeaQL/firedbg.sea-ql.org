@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkfiredbg=self.webpackChunkfiredbg||[]).push([[713],{3457:e=>{e.exports=JSON.parse('[{"label":"news","permalink":"/blog/tags/news","count":5}]')}}]);
