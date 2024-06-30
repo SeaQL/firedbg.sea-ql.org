@@ -14,7 +14,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       YARN_ENABLE_IMMUTABLE_INSTALLS: false
     steps:
