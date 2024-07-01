@@ -198,7 +198,7 @@ This is the rule of thumb of multithreaded / parallel programming: if we don't m
 
 The solution to the above problem is simple: Fizz thread has to wait until Buzz thread finishes printing. There can be multiple ways to implement this, e.g. with a `request-response` design, or with a `Future` that only completes after printing.
 
-The simplest solution here though, is to send signal in successive pairs, with even signal open and odd signal close.
+The simplest solution here, though, is to send signals in successive pairs, with even signals indicating an open `(` and odd signals indicating a close `)`.
 
 ```rust
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
@@ -262,7 +262,7 @@ In this article we discussed:
 
 1. The basics of multithreaded programming
 1. The analysis and resolution of race conditions
-1. Synchronization with zero-sized channels and a minimal protocol
+1. Synchronization with zero-sized channels and a double-handshake protocol
 1. Visualizing multithreaded programs with FireDBG
 
 FireDBG can be used to study parallel algorithms in simulation, before scaling up to real-world distributed systems.
