@@ -186,7 +186,11 @@ module.exports = {
   plugins: [
     'plugin-image-zoom',
   ],
+  stylesheets: [
+    '/cookieconsent.css',
+  ],
   scripts: [
     '/firedbg.js',
+    { type: 'module', src: '/cookieconsent.js' },
   ],
 };
