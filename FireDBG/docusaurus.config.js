@@ -191,6 +191,10 @@ module.exports = {
   ],
   scripts: [
     '/firedbg.js',
-    { type: 'module', async: true, src: 'https://www.sea-ql.org/cookieconsent/cookieconsent.js' },
+    {
+      type: 'module',
+      src: 'https://www.sea-ql.org/cookieconsent/cookieconsent.js',
+      async: true,
+    },
   ],
 };
