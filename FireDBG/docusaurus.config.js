@@ -187,10 +187,10 @@ module.exports = {
     'plugin-image-zoom',
   ],
   stylesheets: [
-    '/cookieconsent.css',
+    'https://www.sea-ql.org/cookieconsent/cookieconsent.css',
   ],
   scripts: [
     '/firedbg.js',
-    { type: 'module', src: '/cookieconsent.js' },
+    { type: 'module', async: true, src: 'https://www.sea-ql.org/cookieconsent/cookieconsent.js' },
   ],
 };
